@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__ = 'Felix Yu'
+
+# ======READ ME========
+# 这是简易脚本
+# 需要配置url所在文件和结果保存的文件地址,文件格式为txt
+# 主要原理是抓取查收录的url搜索结果第一的url , 并跳转获取真实url与查询url进行对比,正确就是收录,其他皆未收录.
+# 可以查pc url 也可以查移动url 不过移动url最好还是在移动百度查询. 2边收录结果并不完全一致.
+# 可能需要安装 requests 和 lxml 第三方包
+
+import requests
+from lxml import etree
+
+_Baidu_Ruery = "https://www.baidu.com/s?&wd="
+head = {"user-agent":"Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36"}
+_File = 'url.txt'#配置url所在的文件 utf8格式
+_Save_File = 'save resule.txt'#配置保存结果的文件
+file = open(_File,'r')
+file_write = open('_Save_File','w',encoding='utf-8')
+line = file.readlines()
+print('Script is launching')
+for i in line:
+	if i[-1] =='\n':
+		i = i[:-1]
+	url = _Baidu_Ruery+i
+	request = requests.get(url=url,headers=head)
+	response = request.text
+	selector=etree.HTML(response)
+	url_target = 0
+	try:
+		content = selector.xpath('//*[@id="1"]/h3/a/@href')
+		direct_request = requests.get(content[0])
+		url_target = direct_request.url
+		if url_target == i:
+			file_write.write(i+'\t'+'收录'+'\n')
+			print(i,url_target,'m')
+		elif url_target[-15] == i[-15]:
+			file_write.write(i+'\t'+'pc收录'+'\n')
+			print(i,url_target,'pc')
+		else:
+			file_write.write(i+'\t'+'未收'+'\n')
+			print(i,url_target,'no')
+	except:
+		file_write.write(i+'\t'+'未收'+'\n')
+		print(i,url_target,'e')
+print('done')
+file_write.close()
+
