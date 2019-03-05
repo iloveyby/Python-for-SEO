@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+__author__='Felix_Yu'
+__Version__='beta - 0.0.1'
+# ======READ ME======
+# 百度站长后台索引量爬取, 并且每日更新数据,运行前需要配置一些设置.详见注释
+# 需要配置抓取的索引规则名称和对应id
+# 需要配置登录后的cookie
+# 配置网站的URL
+# 需要安装requests , openpyxl 第三方包
+# 以后可能会更新自动获取cookie 和 id, 那应该是以后的事情了.
+
+import time
+import json
+import requests
+import openpyxl
+from openpyxl import Workbook, load_workbook
+
+_PC_SITE = "www.yourdomai.com"
+_MO_SITE = "m.yourdomain.com"
+_NAME_ID_DICT = {"自定义目录名":"与后台配置目录名对应的id"}#获取百度站长后台索引配置的数据id xpath为://*[@id="rule-tb"]/tbody//tr/@data-id
+_REQUEST_SITE = 'https://ziyuan.baidu.com/indexs/curve?site='
+_ID_ARGS = '&id='
+_DATA_RANGE = '&range=month'
+_EXCEL_FILE = '百度索引抓取.xlsx'#数据保存的excel地址
+_COOKIE = {}#获取登录后的cookie
+excel_file = load_workbook(_EXCEL_FILE)
+excel_sheet = excel_file.get_sheet_by_name('Sheet1')
+column = 2
+row_array = []
+max_row = excel_sheet.max_row
+print('Start Already Launched %s Days' % (max_row-1))
+for row in range(2, max_row + 1):
+    row_array.append(str(excel_sheet.cell(row, 1).value))
+for k in _NAME_ID_DICT:
+    v = _NAME_ID_DICT.get(k)
+    url = _REQUEST_SITE + _PC_SITE + _ID_ARGS + v + _DATA_RANGE
+    request = requests.get(url=url, cookies=_COOKIE)
+    response = request.text
+    data_json = json.loads(response)
+    if excel_sheet.cell(1, 1).value == 'data':
+        print('已有data')
+    else:
+        excel_sheet.cell(1, 1).value = 'data'
+    if excel_sheet.cell(1, column).value == str(k):
+        print('已有%s' % k)
+    else:
+        print(k)
+        excel_sheet.cell(1, column).value = k
+    json_len = len(data_json['list_new'])
+    row_edit = 1
+    for data in range(0, json_len):
+        index_value = data_json['list_new'][data]['total']
+        ctime = time.localtime(data_json['list_new'][data]['ctime'])
+        ctime = time.strftime("%Y-%m-%d", ctime)
+        try:
+            row_array.index(str(ctime))
+            continue
+        except:
+            print('%s不存在' % ctime)
+            excel_sheet.cell(max_row + row_edit, 1).value = ctime
+            if excel_sheet.cell(max_row + row_edit, column).value is None:
+                excel_sheet.cell(max_row + row_edit, column).value = int(index_value)
+            else:
+                continue
+        row_edit += 1
+    column += 1
+excel_file.save(_EXCEL_FILE)
+row_array = []
+max_row = excel_sheet.max_row
+for row in range(2, max_row + 1):
+    row_array.append(str(excel_sheet.cell(row, 1).value))
+mob_url = _REQUEST_SITE + _MO_SITE + _ID_ARGS + '0' + _DATA_RANGE
+mob_request = requests.get(url=mob_url, cookies=_COOKIE)
+mob_response = mob_request.text
+mob_data_json = json.loads(mob_response)
+if excel_sheet.cell(1, column).value == "MOB":
+    print('已有MOB')
+else:
+    print('添加MOB')
+    excel_sheet.cell(1, column).value = "MOB"
+mob_json_len = len(mob_data_json['list_new'])
+for mob_data in range(0, mob_json_len):
+    mob_index_value = mob_data_json['list_new'][mob_data]['total']
+    mob_ctime = time.localtime(mob_data_json['list_new'][mob_data]['ctime'])
+    mob_ctime = time.strftime("%Y-%m-%d", mob_ctime)
+    try:
+        mob_row = row_array.index(str(mob_ctime)) + 2
+        if excel_sheet.cell(mob_row, column).value is None:
+            excel_sheet.cell(mob_row, column).value = int(mob_index_value)
+    except:
+        continue
+excel_file.save(_EXCEL_FILE)
