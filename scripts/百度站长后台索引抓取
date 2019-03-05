@@ -93,3 +93,4 @@ for mob_data in range(0, mob_json_len):
     except:
         continue
 excel_file.save(_EXCEL_FILE)
+
