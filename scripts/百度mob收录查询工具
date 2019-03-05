@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__ = 'Felix_Yu'
+
+# ======READ ME======
+# 这是一个百度移动查收录的工具
+# 需要配置url所在文件和结果保存的文件地址,文件格式为txt
+# 百度移动跳转是用的js跳转,脚本不需要再加载一次js获取真实地址,在源代码里找到"window.location.replace"获取参数url 与需要查询的url进行对比
+# 可能需要安装 requests 和 lxml 第三方包
+
+
+import requests
+import re
+from lxml import etree
+
+_Baidu_Ruery = "https://m.baidu.com/s?&word="
+head = {"user-agent":"Mozilla/5.0 (Linux; Android 4.4.2; Nexus 4 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.114 Mobile Safari/537.36"}
+_File = 'url.txt'#配置url所在的文件 utf8格式
+_Save_File = 'save resule.txt'#配置保存结果的文件
+file = open(_File,'r')
+file_write = open('_Save_File','w',encoding='utf-8')
+line = file.readlines()
+for i in line:
+	if i[-1] =='\n':
+		i = i[:-1]
+	url = _Baidu_Ruery+i
+	request = requests.get(url=url,headers=head)
+	response = request.text
+	selector=etree.HTML(response) 
+	url_target = []
+	try:
+		content = selector.xpath('//*[@id="results"]/div[1]/div/article/header/div/a/@href')
+		direct_request = requests.get(content[0])
+		direct_response = direct_request.text
+		url_target = re.findall("window.location.replace\(\"(.*)\"\)",direct_response)
+		if url_target[0] == i:
+			file_write.write(i+'\t'+'收录'+'\n')
+			print(i,url_target,'s')
+		else:
+			file_write.write(i+'\t'+'未收'+'\n')
+			print(i,url_target,'ws')
+	except:
+		file_write.write(i+'\t'+'未收'+'\n')
+		print(i,url_target,'ws')
+print('done')
+file_write.close()
