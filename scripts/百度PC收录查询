@@ -47,4 +47,3 @@ for i in line:
 		print(i,url_target,'e')
 print('done')
 file_write.close()
-
