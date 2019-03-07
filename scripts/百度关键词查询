@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__ = 'Felix Yu'
+
+# ======READ ME========
+# 算是一个第三方的库
+# 需要构建一个baidurank的对象传入keyword,domain用get_pc_rank方法获取排名.返回的是json , 一共三个key: kw,rank,url
+# 移动的暂时还没弄,尽快做出来.
+  # from codefile import baidu_rank
+  # rank=baidu_rank('keyword','domain').get_pc_rank()
+  # print(rank['kw'],rank['rank'],rank['url'])
+# 目前pc只支持查询前50条结果, 想做个page参数,目前自己用不到.暂时不搞了
+# 没有做错误检测.将就用了.
+
+
+
+import requests
+import re
+from lxml import etree
+
+
+class baidu_rank(object):
+    """docstring for baidu_rank"""
+
+    def __init__(self, keyword, domain):
+        super(baidu_rank, self).__init__()
+        self.keyword = keyword
+        self.domain = domain
+        self.headers = {"user-agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36"}
+        self.baiduquery = "https://www.baidu.com/s?&wd="
+        self.page = "&rn=10"#每页展示多少结果,最多50.10的倍数
+
+    def get_pc_all_rank(self):
+        url = self.baiduquery + self.keyword + self.page
+        req = requests.get(url=url, headers=self.headers)
+        res = req.text
+        selector = etree.HTML(res)
+        content = selector.xpath('/html[1]/body[1]/div[1]/div[3]/div[1]/div[3]//div/h3[1]/a[1]/@href')
+        rank_array = []
+        num = 1
+        for r in content:
+            rank_sub = {}
+            organic = re.match(".+?link.+?", r)
+            if organic is None:
+                continue
+            try:
+                redirect_request = requests.head(r, headers=self.headers,allow_redirects=True,timeout=5)
+            except:
+                print('关键词:%s,搜索结果第%d条,访问超时' % (self.keyword,num))
+                num += 1
+                continue
+            re_url = redirect_request.url
+            if re_url == r:
+                re_content = redirect_request.text
+                re_url = re.findall(r"\"(http.*?)\"", re_content)
+                re_url = re_url[0]
+            rank_sub[num] = re_url
+            rank_array.append(rank_sub)
+            num += 1
+        rank_result_array = []
+        for i in rank_array:
+            for k, v in i.items():
+                search = re.match(".+?" + self.domain + "+?", v)
+                if search is not None:
+                    rank_result_array.append(i)
+        rank_list=[]
+        rank_url_dict={}
+        for d in rank_result_array:
+            for k,v in d.items():
+                rank_url_dict = dict(rank=k,url=v)
+                rank_list.append(rank_url_dict)
+        rank_result_dict=dict(kw=self.keyword,list=rank_list)
+        return rank_result_dict
+
+    def get_pc_rank(self):
+        url = self.baiduquery + self.keyword + self.page
+        req = requests.get(url=url, headers=self.headers)
+        res = req.text
+        selector = etree.HTML(res)
+        content = selector.xpath('/html[1]/body[1]/div[1]/div[3]/div[1]/div[3]//div/h3[1]/a[1]/@href')
+        rank_array = []
+        num = 1
+        rank_url_dict={}
+        for r in content:
+            organic = re.match(".+?link.+?", r)
+            if organic is None:
+                continue
+            try:
+                redirect_request = requests.head(r, headers=self.headers,allow_redirects=True,timeout=5)
+            except:
+                print('关键词:%s,搜索结果第%d条,访问超时' % (self.keyword,num))
+                num += 1
+                continue
+            re_url = redirect_request.url
+            if re_url == r:
+                re_content = redirect_request.text
+                re_url = re.findall(r"\"(http.*?)\"", re_content)
+                re_url = re_url[0]
+            search = re.match(".+?" + self.domain + "+?", re_url)
+            if search is not None:
+                rank_result_dict = dict(kw=self.keyword,rank=num,url=re_url)
+                break
+            num += 1
+        return rank_result_dict
+
