@@ -1,3 +1,4 @@
 # Python-Script
 Base on python 3. Some scripts for SEO
-## some script for crawl baidu , website and so on and result file solved.
+## some script for crawl baidu's data ,search result , website data and so on.
+## the data file resolved. 
